@@ -1,13 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import {
-  getSessionData,
-  updateCurrentIndex,
-  getNextConditionPath,
-  type SessionData,
-} from './counterbalance';
+import { getSessionData, updateSession } from './counterbalance';
+import { getNextRoute, isLastStage } from './navigation';
+import type { SessionData, BlockType, StageType } from './types';
 
 export function useCounterbalance() {
   const router = useRouter();
@@ -20,27 +17,30 @@ export function useCounterbalance() {
     setIsLoading(false);
   }, []);
 
-  const goToNextCondition = () => {
-    if (!sessionData) {
-      return;
-    }
+  const refreshSession = useCallback(() => {
+    const data = getSessionData();
+    setSessionData(data);
+  }, []);
 
-    const nextPath = getNextConditionPath();
-    if (nextPath) {
-      // Update the index before navigating
-      updateCurrentIndex(sessionData.currentIndex + 1);
-      router.push(nextPath);
-    }
-  };
+  const goToNextStage = useCallback(() => {
+    const nextPath = getNextRoute();
+    router.push(nextPath);
+  }, [router]);
+
+  const currentCondition: BlockType | undefined = sessionData
+    ? sessionData.conditionOrder[sessionData.currentConditionIndex]
+    : undefined;
 
   return {
     sessionData,
     isLoading,
-    goToNextCondition,
-    currentCondition: sessionData?.conditionOrder[sessionData.currentIndex],
-    isLastCondition:
-      sessionData
-        ? sessionData.currentIndex >= sessionData.conditionOrder.length - 1
-        : false,
+    goToNextStage,
+    refreshSession,
+    currentCondition,
+    currentStage: sessionData?.currentStage as StageType | undefined,
+    focalColors: sessionData?.focalColors,
+    isLastStage: isLastStage(),
+    conditionIndex: sessionData?.currentConditionIndex ?? 0,
+    totalConditions: sessionData?.conditionOrder.length ?? 3,
   };
 }

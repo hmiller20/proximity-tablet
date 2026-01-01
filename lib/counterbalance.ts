@@ -1,12 +1,16 @@
 // Counterbalancing utility for randomizing condition order
 
-export type ConditionId = '1' | '2' | '3';
+import {
+  BlockType,
+  SessionData,
+  StorageData,
+  FigurePositionData,
+  FocalColor,
+  CONDITIONS,
+  FOCAL_COLORS,
+} from './types';
 
-export interface SessionData {
-  conditionOrder: ConditionId[];
-  currentIndex: number;
-  startTime: string;
-}
+const STORAGE_KEY = 'proximityStudyData';
 
 // Fisher-Yates shuffle algorithm
 function shuffle<T>(array: T[]): T[] {
@@ -18,81 +22,152 @@ function shuffle<T>(array: T[]): T[] {
   return shuffled;
 }
 
-export function initializeSession(): SessionData {
-  const conditions: ConditionId[] = ['1', '2', '3'];
-  const conditionOrder = shuffle(conditions);
-
-  const sessionData: SessionData = {
-    conditionOrder,
-    currentIndex: 0,
-    startTime: new Date().toISOString(),
-  };
-
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('sessionData', JSON.stringify(sessionData));
-  }
-
-  return sessionData;
+// Generate a UUID
+function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
-export function getSessionData(): SessionData | null {
+// Get all storage data
+export function getStorageData(): StorageData {
   if (typeof window === 'undefined') {
-    return null;
+    return { completedSessions: [], currentSession: null };
   }
 
-  const stored = localStorage.getItem('sessionData');
+  const stored = localStorage.getItem(STORAGE_KEY);
   if (!stored) {
-    return null;
+    return { completedSessions: [], currentSession: null };
   }
 
   try {
     return JSON.parse(stored);
   } catch {
-    return null;
+    return { completedSessions: [], currentSession: null };
   }
 }
 
-export function updateCurrentIndex(index: number): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
+// Save storage data
+function saveStorageData(data: StorageData): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
 
-  const sessionData = getSessionData();
-  if (sessionData) {
-    sessionData.currentIndex = index;
-    localStorage.setItem('sessionData', JSON.stringify(sessionData));
+// Initialize a new session
+export function initializeSession(): SessionData {
+  const conditionOrder = shuffle([...CONDITIONS]);
+  const shuffledColors = shuffle([...FOCAL_COLORS]);
+
+  // Assign each color to a condition (each color appears exactly once)
+  const focalColors: Record<BlockType, FocalColor> = {
+    [conditionOrder[0]]: shuffledColors[0],
+    [conditionOrder[1]]: shuffledColors[1],
+    [conditionOrder[2]]: shuffledColors[2],
+  } as Record<BlockType, FocalColor>;
+
+  const sessionData: SessionData = {
+    id: generateUUID(),
+    conditionOrder,
+    currentConditionIndex: 0,
+    currentStage: 'prep',
+    startTime: new Date().toISOString(),
+    focalColors,
+    figurePositions: {},
+    surveyResponses: {},
+    isComplete: false,
+  };
+
+  // Save as current session
+  const storage = getStorageData();
+  storage.currentSession = sessionData;
+  saveStorageData(storage);
+
+  return sessionData;
+}
+
+// Get current session data
+export function getSessionData(): SessionData | null {
+  const storage = getStorageData();
+  return storage.currentSession;
+}
+
+// Update current session
+export function updateSession(updates: Partial<SessionData>): void {
+  const storage = getStorageData();
+  if (storage.currentSession) {
+    storage.currentSession = { ...storage.currentSession, ...updates };
+    saveStorageData(storage);
   }
 }
 
-export function getCurrentCondition(): ConditionId | null {
+// Save figure positions for a condition
+export function saveFigurePositions(
+  blockType: BlockType,
+  positions: FigurePositionData[]
+): void {
+  const storage = getStorageData();
+  if (storage.currentSession) {
+    storage.currentSession.figurePositions[blockType] = positions;
+    saveStorageData(storage);
+  }
+}
+
+// Save survey responses for a condition
+export function saveSurveyResponses(
+  blockType: BlockType,
+  responses: { dominanceCheck1: number; dominanceCheck2: number }
+): void {
+  const storage = getStorageData();
+  if (storage.currentSession) {
+    storage.currentSession.surveyResponses[blockType] = responses;
+    saveStorageData(storage);
+  }
+}
+
+// Mark current session as complete and move to completed list
+export function markSessionComplete(): void {
+  const storage = getStorageData();
+  if (storage.currentSession) {
+    storage.currentSession.isComplete = true;
+    storage.completedSessions.push(storage.currentSession);
+    storage.currentSession = null;
+    saveStorageData(storage);
+  }
+}
+
+// Get completed sessions ready for upload
+export function getCompletedSessions(): SessionData[] {
+  const storage = getStorageData();
+  return storage.completedSessions;
+}
+
+// Clear completed sessions after successful upload
+export function clearCompletedSessions(): void {
+  const storage = getStorageData();
+  storage.completedSessions = [];
+  saveStorageData(storage);
+}
+
+// Get current condition
+export function getCurrentCondition(): BlockType | null {
   const sessionData = getSessionData();
   if (!sessionData) {
     return null;
   }
-
-  return sessionData.conditionOrder[sessionData.currentIndex] || null;
+  return sessionData.conditionOrder[sessionData.currentConditionIndex] || null;
 }
 
-export function getNextConditionPath(): string | null {
+// Get focal colors map for current session
+export function getFocalColors(): Record<BlockType, FocalColor> | null {
   const sessionData = getSessionData();
-  if (!sessionData) {
-    return null;
-  }
-
-  const nextIndex = sessionData.currentIndex + 1;
-
-  // If we've completed all conditions, go to debrief
-  if (nextIndex >= sessionData.conditionOrder.length) {
-    return '/debrief';
-  }
-
-  // Otherwise, return the next condition
-  const nextCondition = sessionData.conditionOrder[nextIndex];
-  return `/${nextCondition}`;
+  return sessionData?.focalColors || null;
 }
 
-export function clearSession(): void {
+// Clear all data (for testing/reset)
+export function clearAllData(): void {
   if (typeof window !== 'undefined') {
-    localStorage.removeItem('sessionData');
+    localStorage.removeItem(STORAGE_KEY);
   }
 }

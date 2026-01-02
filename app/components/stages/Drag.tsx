@@ -195,9 +195,10 @@ export default function Drag({ blockType }: DragProps) {
       {/* Instructions */}
       <div className="mb-4 text-center">
         <p className="text-base md:text-lg max-w-2xl mx-auto text-black">
-          Imagine you&apos;re looking down at a room from above. These people all work
-          together at a company. Drag each figure to where you think they would
-          naturally stand in a group. There are no right or wrong answers.
+          Imagine that these people work together. They are having a meeting involving 
+          employees from all levels of the company. 
+          Drag each figure to where you think they would
+          naturally stand in the group.
         </p>
       </div>
 

@@ -34,9 +34,10 @@ export interface Trial {
   status_manip_1: number;
   status_manip_2: number;
   // Attention checks - only one is filled per trial based on condition
-  attn_check_1: number | null;  // Condition 1: "select five" (correct = 5)
-  attn_check_2: number | null;  // Condition 2: "select three" (correct = 3)
-  attn_check_3: number | null;  // Condition 3: "select one" (correct = 1)
+  // Column names reflect the correct answer for easy identification
+  attn_check_5: number | null;  // Condition 1: "select five" (correct = 5)
+  attn_check_3: number | null;  // Condition 2: "select three" (correct = 3)
+  attn_check_1: number | null;  // Condition 3: "select one" (correct = 1)
   centroid_x: number | null;
   centroid_y: number | null;
   focal_distance_from_centroid: number | null;
@@ -190,10 +191,10 @@ export async function uploadSessions(sessions: SessionData[]): Promise<void> {
           pre_manip_2: surveyResponses?.preManip2 ?? 0,
           status_manip_1: surveyResponses?.statusManip1 ?? 0,
           status_manip_2: surveyResponses?.statusManip2 ?? 0,
-          // Attention checks - each condition has a different one
-          attn_check_1: surveyResponses?.attnCheck1 ?? null,
-          attn_check_2: surveyResponses?.attnCheck2 ?? null,
-          attn_check_3: surveyResponses?.attnCheck3 ?? null,
+          // Attention checks - column names reflect correct answer
+          attn_check_5: surveyResponses?.attnCheck1 ?? null,  // Condition 1: correct = 5
+          attn_check_3: surveyResponses?.attnCheck2 ?? null,  // Condition 2: correct = 3
+          attn_check_1: surveyResponses?.attnCheck3 ?? null,  // Condition 3: correct = 1
           centroid_x: centroidMetrics?.centroid_x ?? null,
           centroid_y: centroidMetrics?.centroid_y ?? null,
           focal_distance_from_centroid: centroidMetrics?.focal_distance_from_centroid ?? null,

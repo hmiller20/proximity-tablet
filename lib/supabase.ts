@@ -27,8 +27,13 @@ export interface Trial {
   participant_id: string;
   condition: 'dominant' | 'prestigious' | 'low_status';
   trial_index: number;
-  dominance_check_1: number;
-  dominance_check_2: number;
+  dom_manip_1: number;
+  dom_manip_2: number;
+  pre_manip_1: number;
+  pre_manip_2: number;
+  attn_check: number;
+  status_manip_1: number;
+  status_manip_2: number;
   created_at: string;
 }
 
@@ -100,8 +105,13 @@ export async function uploadSessions(sessions: SessionData[]): Promise<void> {
           participant_id: participant.id,
           condition: mapCondition(blockType),
           trial_index: i + 1,
-          dominance_check_1: surveyResponses?.dominanceCheck1 ?? 0,
-          dominance_check_2: surveyResponses?.dominanceCheck2 ?? 0,
+          dom_manip_1: surveyResponses?.domManip1 ?? 0,
+          dom_manip_2: surveyResponses?.domManip2 ?? 0,
+          pre_manip_1: surveyResponses?.preManip1 ?? 0,
+          pre_manip_2: surveyResponses?.preManip2 ?? 0,
+          attn_check: surveyResponses?.attnCheck ?? 0,
+          status_manip_1: surveyResponses?.statusManip1 ?? 0,
+          status_manip_2: surveyResponses?.statusManip2 ?? 0,
         })
         .select()
         .single();

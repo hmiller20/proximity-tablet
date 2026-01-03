@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useCounterbalance } from '@/lib/useCounterbalance';
 import { saveFigurePositions } from '@/lib/counterbalance';
 import GingerbreadFigure from '@/app/components/GingerbreadFigure';
@@ -69,12 +69,53 @@ function createInitialFigures(): FigureState[] {
 }
 
 export default function Drag({ blockType }: DragProps) {
-  const { goToNextStage, isLoading, isLastStage, focalColors } = useCounterbalance();
+  const { goToNextStage, isLoading, isLastStage, focalColors, currentCharacterName, currentFocalColor } = useCounterbalance();
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const [figures, setFigures] = useState<FigureState[]>(createInitialFigures);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [showError, setShowError] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(true);
+  const [countdown, setCountdown] = useState(10);
+
+  // Countdown timer for instructions popup
+  useEffect(() => {
+    if (!showInstructions || countdown <= 0) return;
+
+    const timer = setTimeout(() => {
+      setCountdown((prev) => prev - 1);
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [showInstructions, countdown]);
+
+  // Position figures evenly based on canvas height
+  useEffect(() => {
+    if (!canvasRef.current) return;
+
+    const updateFigurePositions = () => {
+      const canvasHeight = canvasRef.current?.offsetHeight || 0;
+      if (canvasHeight === 0) return;
+
+      const totalFigures = 7;
+      const availableHeight = canvasHeight - FIGURE_HEIGHT;
+      const spacing = availableHeight / (totalFigures - 1);
+
+      setFigures((prev) =>
+        prev.map((figure, index) => ({
+          ...figure,
+          y: index * spacing,
+        }))
+      );
+    };
+
+    // Initial positioning
+    updateFigurePositions();
+
+    // Update on resize
+    window.addEventListener('resize', updateFigurePositions);
+    return () => window.removeEventListener('resize', updateFigurePositions);
+  }, []);
 
   // Use refs for drag state to avoid stale closures
   const dragStartPos = useRef({ x: 0, y: 0 });
@@ -191,22 +232,54 @@ export default function Drag({ blockType }: DragProps) {
     : '#3b82f6';
 
   return (
-    <div className="min-h-screen flex flex-col p-4 bg-gray-100">
+    <div className="h-screen flex flex-col p-4 bg-gray-100 overflow-hidden">
       {/* Instructions */}
-      <div className="mb-4 text-center">
-        <p className="text-base md:text-lg max-w-2xl mx-auto text-black">
-          Imagine that these people work together. They are having a meeting involving 
-          employees from all levels of the company. 
-          Drag each figure to where you think they would
-          naturally stand in the group.
+      <div className="mb-2 text-center px-2 flex-shrink-0">
+        <p className="text-xl md:text-2xl font-bold text-black whitespace-nowrap">
+          Drag{' '}
+          <span style={{ color: focalColorHex }}>{currentCharacterName}</span>{' '}
+          and the other figures into the shape of a group.
         </p>
       </div>
+
+      {/* Instructions Popup */}
+      <Dialog open={showInstructions} onOpenChange={setShowInstructions}>
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Instructions</DialogTitle>
+            <DialogDescription className="text-base leading-relaxed">
+              Imagine that these people work together. They are having a meeting involving
+              employees from all levels of the company.{' '}
+              <span style={{ color: focalColorHex, fontWeight: 'bold' }}>{currentCharacterName}</span>{' '}
+              is the figure in{' '}
+              <span style={{ color: focalColorHex, fontWeight: 'bold' }}>{currentFocalColor}</span>.{' '}
+              The gray figures are other employees, including interns, managers, and executives.{' '}
+              Drag each figure to where you think they would naturally stand in the group.
+              <br /><br />
+              Let the experimenter know if you have any questions.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              onClick={() => setShowInstructions(false)}
+              disabled={countdown > 0}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                countdown > 0
+                  ? 'bg-gray-400 text-white cursor-not-allowed'
+                  : 'bg-black text-white hover:bg-gray-800'
+              }`}
+            >
+              {countdown > 0 ? `Continue (${countdown})` : 'Continue'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Canvas */}
       <div
         ref={canvasRef}
-        className="flex-1 bg-white rounded-lg shadow-lg relative overflow-hidden"
-        style={{ minHeight: '60vh', touchAction: 'none' }}
+        className="flex-1 min-h-0 bg-white rounded-lg shadow-lg relative overflow-hidden"
+        style={{ touchAction: 'none' }}
       >
         {figures.map((figure) => (
           <div
@@ -255,12 +328,12 @@ export default function Drag({ blockType }: DragProps) {
       </Dialog>
 
       {/* Next button */}
-      <div className="mt-4 flex justify-center">
+      <div className="mt-2 flex justify-center flex-shrink-0">
         <button
           onClick={handleNext}
           className="px-8 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors text-lg"
         >
-          {isLastStage ? 'Complete Study' : 'Next'}
+          {isLastStage ? 'Continue' : 'Next'}
         </button>
       </div>
     </div>

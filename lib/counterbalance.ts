@@ -6,8 +6,11 @@ import {
   StorageData,
   FigurePositionData,
   FocalColor,
+  CharacterName,
+  SurveyResponses,
   CONDITIONS,
   FOCAL_COLORS,
+  CHARACTER_NAMES,
 } from './types';
 
 const STORAGE_KEY = 'proximityStudyData';
@@ -59,6 +62,7 @@ function saveStorageData(data: StorageData): void {
 export function initializeSession(): SessionData {
   const conditionOrder = shuffle([...CONDITIONS]);
   const shuffledColors = shuffle([...FOCAL_COLORS]);
+  const shuffledNames = shuffle([...CHARACTER_NAMES]);
 
   // Assign each color to a condition (each color appears exactly once)
   const focalColors: Record<BlockType, FocalColor> = {
@@ -67,6 +71,13 @@ export function initializeSession(): SessionData {
     [conditionOrder[2]]: shuffledColors[2],
   } as Record<BlockType, FocalColor>;
 
+  // Assign each character name to a condition (each name appears exactly once)
+  const characterNames: Record<BlockType, CharacterName> = {
+    [conditionOrder[0]]: shuffledNames[0],
+    [conditionOrder[1]]: shuffledNames[1],
+    [conditionOrder[2]]: shuffledNames[2],
+  } as Record<BlockType, CharacterName>;
+
   const sessionData: SessionData = {
     id: generateUUID(),
     conditionOrder,
@@ -74,6 +85,7 @@ export function initializeSession(): SessionData {
     currentStage: 'prep',
     startTime: new Date().toISOString(),
     focalColors,
+    characterNames,
     figurePositions: {},
     surveyResponses: {},
     isComplete: false,
@@ -117,7 +129,7 @@ export function saveFigurePositions(
 // Save survey responses for a condition
 export function saveSurveyResponses(
   blockType: BlockType,
-  responses: { dominanceCheck1: number; dominanceCheck2: number }
+  responses: SurveyResponses
 ): void {
   const storage = getStorageData();
   if (storage.currentSession) {
@@ -170,4 +182,16 @@ export function clearAllData(): void {
   if (typeof window !== 'undefined') {
     localStorage.removeItem(STORAGE_KEY);
   }
+}
+
+// Get character name for a specific condition
+export function getCharacterName(blockType: BlockType): CharacterName | null {
+  const sessionData = getSessionData();
+  return sessionData?.characterNames[blockType] || null;
+}
+
+// Get character names map for current session
+export function getCharacterNames(): Record<BlockType, CharacterName> | null {
+  const sessionData = getSessionData();
+  return sessionData?.characterNames || null;
 }

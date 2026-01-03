@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { getSessionData, updateSession } from './counterbalance';
+import { getSessionData, updateSession, getCharacterName } from './counterbalance';
 import { getNextRoute, isLastStage } from './navigation';
-import type { SessionData, BlockType, StageType } from './types';
+import type { SessionData, BlockType, StageType, CharacterName } from './types';
 
 export function useCounterbalance() {
   const router = useRouter();
@@ -31,6 +31,16 @@ export function useCounterbalance() {
     ? sessionData.conditionOrder[sessionData.currentConditionIndex]
     : undefined;
 
+  // Get character name for the current condition
+  const currentCharacterName: CharacterName | undefined = currentCondition
+    ? sessionData?.characterNames[currentCondition]
+    : undefined;
+
+  // Get focal color for the current condition
+  const currentFocalColor = currentCondition
+    ? sessionData?.focalColors[currentCondition]
+    : undefined;
+
   return {
     sessionData,
     isLoading,
@@ -39,6 +49,9 @@ export function useCounterbalance() {
     currentCondition,
     currentStage: sessionData?.currentStage as StageType | undefined,
     focalColors: sessionData?.focalColors,
+    characterNames: sessionData?.characterNames,
+    currentCharacterName,
+    currentFocalColor,
     isLastStage: isLastStage(),
     conditionIndex: sessionData?.currentConditionIndex ?? 0,
     totalConditions: sessionData?.conditionOrder.length ?? 3,

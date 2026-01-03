@@ -46,8 +46,8 @@ export function getNextRoute(): string {
     return buildRoutePath('prep', nextCondition);
   }
 
-  // All conditions complete
-  return '/debrief';
+  // All conditions complete - go to demographics first
+  return '/demographics';
 }
 
 // Check if current position is the last stage of the last condition

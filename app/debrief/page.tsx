@@ -1,37 +1,104 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { markSessionComplete } from '@/lib/counterbalance';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
+import { getProgressValue } from '@/app/utils/sessionProgress';
 
 export default function DebriefPage() {
   const router = useRouter();
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [dialogOpen, setDialogOpen] = useState(true);
 
-  // Mark the current session as complete when this page loads
-  useEffect(() => {
-    markSessionComplete();
-  }, []);
+  const handleSubmit = () => {
+    if (password.toLowerCase() === 'prestige') {
+      router.push('/experimenter');
+    } else {
+      setError('Wrong password');
+    }
+  };
 
-  const handleNewSession = () => {
-    // Navigate back to consent page (data persists until uploaded)
-    router.push('/consent');
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSubmit();
+    }
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-8 gap-8">
-      <h1 className="text-4xl font-bold">Study Complete</h1>
-      <p className="text-lg max-w-2xl text-center">
-        Thank you for participating in this study. Your responses have been saved.
-      </p>
-      <p className="text-base text-gray-600 max-w-xl text-center">
-        To upload the data, return to the consent page and click &quot;Upload Data&quot;.
-      </p>
-      <button
-        onClick={handleNewSession}
-        className="px-6 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
-      >
-        Start New Session
-      </button>
+    <div className="min-h-screen p-4 bg-background">
+      {/* Progress Bar */}
+      <div className="mb-6 mx-auto max-w-4xl">
+        <Progress value={getProgressValue('debrief')} className="w-full h-2" />
+        <p className="text-sm text-gray-600 mt-2 text-center">
+          Progress: {getProgressValue('debrief')}%
+        </p>
+      </div>
+
+      <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
+        <Card className="w-full max-w-2xl">
+          <CardContent className="p-6 flex flex-col items-center gap-8">
+            <p className="text-center text-lg sm:text-xl leading-relaxed">
+              That concludes the study. Thanks for participating.
+            </p>
+
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  className="w-80 h-16 text-xl bg-[#ffeeb2] hover:bg-[#ffe699] text-black"
+                  variant="secondary"
+                >
+                  View Debriefing Form Again
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl h-[80vh] overflow-hidden">
+                <DialogHeader>
+                  <DialogTitle>
+                    That concludes the study. Thanks for participating. Please view the
+                    debriefing form below. Then give the tablet back to the experimenter.
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="flex-1 overflow-y-auto p-4">
+                  {/* Placeholder for PDF viewer */}
+                  <div className="w-full h-full min-h-[400px] bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
+                    <p className="text-gray-500 text-center">
+                      Debriefing form PDF will be displayed here.
+                      <br />
+                      <span className="text-sm">(Add PDFViewer component with /debriefing-form.pdf)</span>
+                    </p>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="For experimenter only"
+                type="text"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (error) setError('');
+                }}
+                onKeyDown={handleKeyDown}
+                className="italic placeholder-gray-500 flex-1"
+              />
+              <Button onClick={handleSubmit}>Enter</Button>
+            </div>
+            {error && <p className="text-red-500 text-sm">{error}</p>}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

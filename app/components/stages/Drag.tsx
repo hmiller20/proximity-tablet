@@ -128,6 +128,10 @@ export default function Drag({ blockType }: DragProps) {
       const movedFigure = result.find((f) => f.id === movedId);
       if (!movedFigure) return result;
 
+      // Get canvas bounds for clamping
+      const maxX = canvasRef.current ? canvasRef.current.offsetWidth - FIGURE_SIZE : Infinity;
+      const maxY = canvasRef.current ? canvasRef.current.offsetHeight - FIGURE_HEIGHT : Infinity;
+
       for (const other of result) {
         if (other.id === movedId) continue;
 
@@ -146,6 +150,10 @@ export default function Drag({ blockType }: DragProps) {
             // Exactly overlapping, push right
             other.x += MIN_SEPARATION;
           }
+
+          // Clamp pushed figure to canvas bounds
+          other.x = Math.max(0, Math.min(maxX, other.x));
+          other.y = Math.max(0, Math.min(maxY, other.y));
         }
       }
 
@@ -233,8 +241,8 @@ export default function Drag({ blockType }: DragProps) {
 
   return (
     <div className="h-screen flex flex-col p-4 bg-gray-100 overflow-hidden">
-      {/* Instructions */}
-      <div className="mb-2 text-center px-2 flex-shrink-0">
+      {/* Instructions - only visible after popup is dismissed, but space is always reserved */}
+      <div className={`mb-2 text-center px-2 flex-shrink-0 ${showInstructions ? 'invisible' : 'visible'}`}>
         <p className="text-xl md:text-2xl font-bold text-black whitespace-nowrap">
           Drag{' '}
           <span style={{ color: focalColorHex }}>{currentCharacterName}</span>{' '}
@@ -248,7 +256,7 @@ export default function Drag({ blockType }: DragProps) {
           <DialogHeader>
             <DialogTitle>Instructions</DialogTitle>
             <DialogDescription className="text-base leading-relaxed">
-              Imagine that these people work together. They are having a meeting involving
+              There are seven people on the left side of the screen. Imagine that these people work together. They are having a meeting with
               employees from all levels of the company.{' '}
               <span style={{ color: focalColorHex, fontWeight: 'bold' }}>{currentCharacterName}</span>{' '}
               is the figure in{' '}

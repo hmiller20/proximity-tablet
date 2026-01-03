@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { getSessionData } from "@/lib/counterbalance"
 import { getFirstRoute } from "@/lib/navigation"
+import { getProgressValue } from "@/app/utils/sessionProgress"
 
 export default function InformationPage() {
   const router = useRouter()
@@ -48,8 +49,8 @@ export default function InformationPage() {
     }
   }
 
-  // Calculate progress (information is early in the flow, ~10%)
-  const progressValue = 10;
+  // Calculate progress
+  const progressValue = getProgressValue('information');
 
   return (
     <div className="min-h-screen p-4 bg-background">

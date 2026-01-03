@@ -12,8 +12,6 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Progress } from '@/components/ui/progress';
-import { getProgressValue } from '@/app/utils/sessionProgress';
 
 export default function DebriefPage() {
   const router = useRouter();
@@ -37,15 +35,7 @@ export default function DebriefPage() {
 
   return (
     <div className="min-h-screen p-4 bg-background">
-      {/* Progress Bar */}
-      <div className="mb-6 mx-auto max-w-4xl">
-        <Progress value={getProgressValue('debrief')} className="w-full h-2" />
-        <p className="text-sm text-gray-600 mt-2 text-center">
-          Progress: {getProgressValue('debrief')}%
-        </p>
-      </div>
-
-      <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
+      <div className="flex items-center justify-center min-h-[calc(100vh-2rem)]">
         <Card className="w-full max-w-2xl">
           <CardContent className="p-6 flex flex-col items-center gap-8">
             <p className="text-center text-lg sm:text-xl leading-relaxed">
@@ -68,15 +58,12 @@ export default function DebriefPage() {
                     debriefing form below. Then give the tablet back to the experimenter.
                   </DialogTitle>
                 </DialogHeader>
-                <div className="flex-1 overflow-y-auto p-4">
-                  {/* Placeholder for PDF viewer */}
-                  <div className="w-full h-full min-h-[400px] bg-gray-100 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300">
-                    <p className="text-gray-500 text-center">
-                      Debriefing form PDF will be displayed here.
-                      <br />
-                      <span className="text-sm">(Add PDFViewer component with /debriefing-form.pdf)</span>
-                    </p>
-                  </div>
+                <div className="flex-1 overflow-y-auto">
+                  <iframe
+                    src="/debriefing-form.pdf"
+                    className="w-full h-full min-h-[60vh]"
+                    title="Debriefing Form"
+                  />
                 </div>
               </DialogContent>
             </Dialog>

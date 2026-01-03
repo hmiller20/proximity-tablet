@@ -6,6 +6,7 @@ import type { BlockType } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { getProgressValue } from '@/app/utils/sessionProgress';
 
 interface PrepProps {
   blockType: BlockType;
@@ -19,7 +20,7 @@ const PREP_TEXT = {
 };
 
 export default function Prep({ blockType }: PrepProps) {
-  const { goToNextStage, isLoading, conditionIndex, totalConditions } = useCounterbalance();
+  const { goToNextStage, isLoading, conditionIndex } = useCounterbalance();
   const [canContinue, setCanContinue] = useState(false);
 
   // Timer effect - 3 second delay before continue is enabled
@@ -38,14 +39,7 @@ export default function Prep({ blockType }: PrepProps) {
   };
 
   // Calculate progress percentage
-  // Prep is stage 1 of 4 per condition
-  const getProgress = (): number => {
-    const stagesPerCondition = 4;
-    const currentStageInCondition = 1; // prep is first
-    const completedStages = (conditionIndex * stagesPerCondition) + currentStageInCondition;
-    const totalStages = totalConditions * stagesPerCondition;
-    return Math.round((completedStages / totalStages) * 100);
-  };
+  const progressValue = getProgressValue('prep', conditionIndex);
 
   if (isLoading) {
     return (
@@ -59,9 +53,9 @@ export default function Prep({ blockType }: PrepProps) {
     <div className="min-h-screen p-4 bg-background">
       {/* Progress Bar */}
       <div className="mb-6 mx-auto max-w-4xl">
-        <Progress value={getProgress()} className="w-full h-2" />
+        <Progress value={progressValue} className="w-full h-2" />
         <p className="text-sm text-gray-600 mt-2 text-center">
-          Progress: {getProgress()}%
+          Progress: {progressValue}%
         </p>
       </div>
 

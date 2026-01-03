@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useCounterbalance } from '@/lib/useCounterbalance';
 import type { BlockType } from '@/lib/types';
 import { FOCAL_COLOR_HEX } from '@/lib/types';
+import { Progress } from '@/components/ui/progress';
+import { getProgressValue } from '@/app/utils/sessionProgress';
 
 interface VignetteProps {
   blockType: BlockType;
@@ -26,7 +28,6 @@ export default function Vignette({ blockType }: VignetteProps) {
     currentCharacterName,
     currentFocalColor,
     conditionIndex,
-    totalConditions
   } = useCounterbalance();
 
   const [canContinue, setCanContinue] = useState(false);
@@ -59,15 +60,7 @@ export default function Vignette({ blockType }: VignetteProps) {
   };
 
   // Calculate progress percentage
-  const getProgress = (): number => {
-    // Each condition has 4 stages: prep, vignette, survey, drag
-    // Vignette is stage 2 of 4
-    const stagesPerCondition = 4;
-    const currentStageInCondition = 2; // vignette is second
-    const completedStages = (conditionIndex * stagesPerCondition) + currentStageInCondition;
-    const totalStages = totalConditions * stagesPerCondition;
-    return Math.round((completedStages / totalStages) * 100);
-  };
+  const progressValue = getProgressValue('vignette', conditionIndex);
 
   if (isLoading) {
     return (
@@ -81,14 +74,9 @@ export default function Vignette({ blockType }: VignetteProps) {
     <div className="min-h-screen p-4 bg-background">
       {/* Progress Bar */}
       <div className="mb-6 mx-auto max-w-4xl">
-        <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-black transition-all duration-300"
-            style={{ width: `${getProgress()}%` }}
-          />
-        </div>
+        <Progress value={progressValue} className="w-full h-2" />
         <p className="text-sm text-gray-600 mt-2 text-center">
-          Progress: {getProgress()}%
+          Progress: {progressValue}%
         </p>
       </div>
 

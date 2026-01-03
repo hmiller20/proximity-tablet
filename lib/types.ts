@@ -47,15 +47,22 @@ export interface SessionData {
   sessionTest?: boolean;
 }
 
-// Survey response structure (7 Likert-scale questions)
+// Survey response structure (6 Likert-scale questions + 1 attention check per condition)
+// Each condition has a different attention check at a different position with a different answer
 export interface SurveyResponses {
   domManip1: number;
   domManip2: number;
   preManip1: number;
   preManip2: number;
-  attnCheck: number;
   statusManip1: number;
   statusManip2: number;
+  // Attention checks - only one is filled per survey based on condition index
+  // Condition 0: position 3, answer "five" (5)
+  // Condition 1: position 5, answer "three" (3)
+  // Condition 2: position 6, answer "one" (1)
+  attnCheck1?: number | null;
+  attnCheck2?: number | null;
+  attnCheck3?: number | null;
 }
 
 // LocalStorage structure
@@ -74,7 +81,7 @@ export type CharacterName = typeof CHARACTER_NAMES[number];
 
 // Hex colors for focal figures
 export const FOCAL_COLOR_HEX: Record<FocalColor, string> = {
-  green: '#22c55e',
+  green: '#228B22', // Forest green
   blue: '#3b82f6',
   orange: '#f97316',
 };

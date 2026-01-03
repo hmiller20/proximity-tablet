@@ -198,10 +198,12 @@ export default function ConsentPage() {
               <DialogHeader>
                 <DialogTitle>Information Sheet</DialogTitle>
               </DialogHeader>
-              <div className="flex-1 overflow-y-auto p-4">
-                <p className="text-gray-500 text-center">
-                  PDF viewer placeholder - add your consent form here
-                </p>
+              <div className="flex-1 overflow-y-auto">
+                <iframe
+                  src="/consent-form.pdf"
+                  className="w-full h-full min-h-[60vh]"
+                  title="Consent Form"
+                />
               </div>
             </DialogContent>
           </Dialog>

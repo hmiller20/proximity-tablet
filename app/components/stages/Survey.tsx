@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import type { BlockType, SurveyResponses } from '@/lib/types';
 import { FOCAL_COLOR_HEX } from '@/lib/types';
+import { getProgressValue } from '@/app/utils/sessionProgress';
 
 interface SurveyProps {
   blockType: BlockType;
@@ -18,7 +19,8 @@ type Question = {
   text: string;
 };
 
-const questions: Question[] = [
+// Base questions without attention check
+const baseQuestions: Question[] = [
   {
     id: 'domManip1',
     text: '[NAME] is willing to use aggressive tactics to get his way.',
@@ -36,10 +38,6 @@ const questions: Question[] = [
     text: '[NAME] is considered an expert on some matters by others.',
   },
   {
-    id: 'attnCheck',
-    text: 'If you are paying attention, select option five.',
-  },
-  {
     id: 'statusManip1',
     text: '[NAME] has a lot of influence over others.',
   },
@@ -49,12 +47,31 @@ const questions: Question[] = [
   },
 ];
 
+// Attention check configurations by condition index
+// Position is 0-indexed insertion point, answer is the correct Likert value
+const attnCheckConfigs: { id: keyof SurveyResponses; position: number; text: string }[] = [
+  { id: 'attnCheck1', position: 2, text: 'If you are paying attention, select option five.' },   // After domManip2 (3rd question)
+  { id: 'attnCheck2', position: 4, text: 'If you are paying attention, select option three.' },  // After preManip2 (5th question)
+  { id: 'attnCheck3', position: 5, text: 'If you are paying attention, select option one.' },    // After statusManip1 (6th question)
+];
+
+// Build questions array with attention check inserted at the correct position
+function getQuestionsForCondition(conditionIndex: number): Question[] {
+  const config = attnCheckConfigs[conditionIndex] || attnCheckConfigs[0];
+  const questions = [...baseQuestions];
+  questions.splice(config.position, 0, { id: config.id, text: config.text });
+  return questions;
+}
+
 export default function Survey({ blockType }: SurveyProps) {
   const { goToNextStage, isLoading, currentCharacterName, currentFocalColor, conditionIndex } = useCounterbalance();
   const [responses, setResponses] = useState<Partial<SurveyResponses>>({});
 
   const colorHex = currentFocalColor ? FOCAL_COLOR_HEX[currentFocalColor] : '#000';
   const characterName = currentCharacterName || 'Person';
+
+  // Get questions with attention check at the correct position for this condition
+  const questions = getQuestionsForCondition(conditionIndex);
 
   // Substitute [NAME] with colored character name
   const formatQuestionText = (text: string): string => {
@@ -80,11 +97,8 @@ export default function Survey({ blockType }: SurveyProps) {
     goToNextStage();
   };
 
-  // Calculate progress based on condition index (each condition has 4 stages)
-  // consent=0, information=10, then 3 conditions * 4 stages each = ~30% per condition
-  const baseProgress = 10 + (conditionIndex * 30);
-  const stageProgress = 15; // survey is 3rd of 4 stages (prep=0, vignette=7.5, survey=15, drag=22.5)
-  const progressValue = Math.min(baseProgress + stageProgress, 100);
+  // Calculate progress based on condition index
+  const progressValue = getProgressValue('survey', conditionIndex);
 
   if (isLoading) {
     return (

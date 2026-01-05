@@ -35,6 +35,7 @@ const INITIAL_LEFT_MARGIN = 20;
 const INITIAL_TOP_MARGIN = 20;
 const INITIAL_SPACING = FIGURE_HEIGHT + 15;
 
+
 // Create initial figures
 function createInitialFigures(): FigureState[] {
   const figures: FigureState[] = [];
@@ -91,10 +92,12 @@ export default function Drag({ blockType }: DragProps) {
 
   // Position figures evenly based on canvas height
   useEffect(() => {
-    if (!canvasRef.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
 
     const updateFigurePositions = () => {
-      const canvasHeight = canvasRef.current?.offsetHeight || 0;
+      const rect = canvas.getBoundingClientRect();
+      const canvasHeight = rect.height;
       if (canvasHeight === 0) return;
 
       const totalFigures = 7;
@@ -109,19 +112,26 @@ export default function Drag({ blockType }: DragProps) {
       );
     };
 
-    // Initial positioning
-    updateFigurePositions();
+    // Use ResizeObserver for reliable dimension tracking
+    const resizeObserver = new ResizeObserver(() => {
+      requestAnimationFrame(updateFigurePositions);
+    });
 
-    // Update on resize
-    window.addEventListener('resize', updateFigurePositions);
-    return () => window.removeEventListener('resize', updateFigurePositions);
+    resizeObserver.observe(canvas);
+
+    // Call after a frame to ensure layout is computed
+    requestAnimationFrame(updateFigurePositions);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
   }, []);
 
   // Use refs for drag state to avoid stale closures
   const dragStartPos = useRef({ x: 0, y: 0 });
   const figureStartPos = useRef({ x: 0, y: 0 });
 
-  // Collision avoidance: push overlapping figures apart
+    // Collision avoidance: push overlapping figures apart
   const resolveCollisions = useCallback(
     (updatedFigures: FigureState[], movedId: string): FigureState[] => {
       const result = updatedFigures.map(f => ({ ...f }));
@@ -246,7 +256,7 @@ export default function Drag({ blockType }: DragProps) {
         <p className="text-xl md:text-2xl font-bold text-black whitespace-nowrap">
           Drag{' '}
           <span style={{ color: focalColorHex }}>{currentCharacterName}</span>{' '}
-          and the other figures into the shape of a group.
+          and the other figures to where you think they would stand in this meeting room.
         </p>
       </div>
 
@@ -283,17 +293,25 @@ export default function Drag({ blockType }: DragProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Canvas */}
+      {/* Canvas - constrained to 16:9 aspect ratio */}
       <div
         ref={canvasRef}
-        className="flex-1 min-h-0 bg-white rounded-lg shadow-lg relative overflow-hidden"
-        style={{ touchAction: 'none' }}
+        className="flex-1 min-h-0 bg-white rounded-lg shadow-lg relative overflow-hidden mx-auto"
+        style={{ touchAction: 'none', aspectRatio: '16 / 9', maxWidth: 'calc((100vh - 140px) * 16 / 9)' }}
       >
+        {/* Floor plan background */}
+        <img
+          src="/meetingRoom3.svg"
+          alt=""
+          className="absolute inset-0 w-full h-full pointer-events-none object-fill"
+          style={{ zIndex: 0 }}
+        />
+
         {figures.map((figure) => (
           <div
             key={figure.id}
             className={`absolute select-none ${
-              draggingId === figure.id ? 'cursor-grabbing z-10' : 'cursor-grab z-0'
+              draggingId === figure.id ? 'cursor-grabbing z-20' : 'cursor-grab z-10'
             }`}
             style={{
               left: figure.x,

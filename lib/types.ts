@@ -82,7 +82,7 @@ export const CONDITIONS: BlockType[] = ['dominance', 'prestige'];
 export const FOCAL_COLORS: FocalColor[] = ['green', 'orange'];
 
 // Character names for vignettes
-export const CHARACTER_NAMES = ['John', 'Bill', 'Mike'] as const;
+export const CHARACTER_NAMES = ['Bill', 'Mike'] as const;
 export type CharacterName = typeof CHARACTER_NAMES[number];
 
 // Hex colors for focal figures

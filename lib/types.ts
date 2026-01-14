@@ -1,8 +1,8 @@
 // Shared types for counterbalanced research study
 
-export type BlockType = 'dominance' | 'lowStatus' | 'prestige';
+export type BlockType = 'dominance' | 'prestige';
 export type StageType = 'prep' | 'vignette' | 'survey' | 'drag';
-export type FocalColor = 'green' | 'blue' | 'orange';
+export type FocalColor = 'green' | 'orange';
 
 // Position data for a single figure
 export interface FigurePositionData {
@@ -10,6 +10,12 @@ export interface FigurePositionData {
   figureIndex: number | null; // null for focal, 1-6 for workers
   x: number;
   y: number;
+}
+
+// Trajectory point for drag tracking
+export interface TrajectoryPoint {
+  x: number;  // horizontal position in pixels
+  t: number;  // milliseconds since instructions dismissed
 }
 
 // Demographics data
@@ -36,6 +42,8 @@ export interface SessionData {
   characterNames: Record<BlockType, CharacterName>;
   figurePositions: Partial<Record<BlockType, FigurePositionData[]>>;
   surveyResponses: Partial<Record<BlockType, SurveyResponses>>;
+  distanceFromCenter: Partial<Record<BlockType, number>>;  // Distance in pixels from leader to center
+  trajectory: Partial<Record<BlockType, TrajectoryPoint[]>>;  // Drag movement trajectory
   isComplete: boolean;
   demographics?: DemographicsData;
   blocks?: CompletedBlock[];
@@ -59,10 +67,8 @@ export interface SurveyResponses {
   // Attention checks - only one is filled per survey based on condition index
   // Condition 0: position 3, answer "five" (5)
   // Condition 1: position 5, answer "three" (3)
-  // Condition 2: position 6, answer "one" (1)
   attnCheck1?: number | null;
   attnCheck2?: number | null;
-  attnCheck3?: number | null;
 }
 
 // LocalStorage structure
@@ -72,8 +78,8 @@ export interface StorageData {
 }
 
 export const STAGES_ORDER: StageType[] = ['prep', 'vignette', 'survey', 'drag'];
-export const CONDITIONS: BlockType[] = ['dominance', 'lowStatus', 'prestige'];
-export const FOCAL_COLORS: FocalColor[] = ['green', 'blue', 'orange'];
+export const CONDITIONS: BlockType[] = ['dominance', 'prestige'];
+export const FOCAL_COLORS: FocalColor[] = ['green', 'orange'];
 
 // Character names for vignettes
 export const CHARACTER_NAMES = ['John', 'Bill', 'Mike'] as const;
@@ -82,7 +88,6 @@ export type CharacterName = typeof CHARACTER_NAMES[number];
 // Hex colors for focal figures
 export const FOCAL_COLOR_HEX: Record<FocalColor, string> = {
   green: '#228B22', // Forest green
-  blue: '#3b82f6',
   orange: '#f97316',
 };
 

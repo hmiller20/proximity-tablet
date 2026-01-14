@@ -52,7 +52,6 @@ const baseQuestions: Question[] = [
 const attnCheckConfigs: { id: keyof SurveyResponses; position: number; text: string }[] = [
   { id: 'attnCheck1', position: 2, text: 'If you are paying attention, select option five.' },   // After domManip2 (3rd question)
   { id: 'attnCheck2', position: 4, text: 'If you are paying attention, select option three.' },  // After preManip2 (5th question)
-  { id: 'attnCheck3', position: 5, text: 'If you are paying attention, select option one.' },    // After statusManip1 (6th question)
 ];
 
 // Build questions array with attention check inserted at the correct position

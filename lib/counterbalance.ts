@@ -8,6 +8,7 @@ import {
   FocalColor,
   CharacterName,
   SurveyResponses,
+  TrajectoryPoint,
   CONDITIONS,
   FOCAL_COLORS,
   CHARACTER_NAMES,
@@ -68,14 +69,12 @@ export function initializeSession(): SessionData {
   const focalColors: Record<BlockType, FocalColor> = {
     [conditionOrder[0]]: shuffledColors[0],
     [conditionOrder[1]]: shuffledColors[1],
-    [conditionOrder[2]]: shuffledColors[2],
   } as Record<BlockType, FocalColor>;
 
   // Assign each character name to a condition (each name appears exactly once)
   const characterNames: Record<BlockType, CharacterName> = {
     [conditionOrder[0]]: shuffledNames[0],
     [conditionOrder[1]]: shuffledNames[1],
-    [conditionOrder[2]]: shuffledNames[2],
   } as Record<BlockType, CharacterName>;
 
   const sessionData: SessionData = {
@@ -88,6 +87,8 @@ export function initializeSession(): SessionData {
     characterNames,
     figurePositions: {},
     surveyResponses: {},
+    distanceFromCenter: {},
+    trajectory: {},
     isComplete: false,
   };
 
@@ -134,6 +135,30 @@ export function saveSurveyResponses(
   const storage = getStorageData();
   if (storage.currentSession) {
     storage.currentSession.surveyResponses[blockType] = responses;
+    saveStorageData(storage);
+  }
+}
+
+// Save distance from center for a condition (in pixels)
+export function saveDistanceFromCenter(
+  blockType: BlockType,
+  distance: number
+): void {
+  const storage = getStorageData();
+  if (storage.currentSession) {
+    storage.currentSession.distanceFromCenter[blockType] = distance;
+    saveStorageData(storage);
+  }
+}
+
+// Save trajectory for a condition (array of {x, t} points)
+export function saveTrajectory(
+  blockType: BlockType,
+  trajectory: TrajectoryPoint[]
+): void {
+  const storage = getStorageData();
+  if (storage.currentSession) {
+    storage.currentSession.trajectory[blockType] = trajectory;
     saveStorageData(storage);
   }
 }

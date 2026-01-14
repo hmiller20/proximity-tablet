@@ -67,11 +67,11 @@ export default function InformationPage() {
         <CardContent className="p-6 flex flex-col items-center gap-8">
           <div className="text-center space-y-4">
             <p className="text-lg sm:text-xl leading-relaxed max-w-xl">
-              Next, you will be presented with three different descriptions of people. For each description,
-              you will read about the person, answer some questions, and then create a group with that person.
+              Next, you will be presented with two different descriptions of people. For both descriptions,
+              you will read about the person, answer some questions, and then place that person in a group.
             </p>
             <p className="text-lg sm:text-xl leading-relaxed max-w-xl">
-            <strong>Remember, you will read about three different people!</strong>
+            <strong>Remember, you will read about two different people!</strong>
             </p>
           </div>
 

@@ -87,7 +87,7 @@ export default function Demographics() {
       // Use local session data to check completion
       const hasBaseline = !!finalSession.baselineDrawing;
       const completedBlockTypes = finalSession.blocks?.map(b => b.blockType) || [];
-      const requiredBlocks: Array<'prestige' | 'dominance' | 'lowStatus'> = ['prestige', 'dominance', 'lowStatus'];
+      const requiredBlocks: Array<'prestige' | 'dominance'> = ['prestige', 'dominance'];
       const isComplete = hasBaseline && requiredBlocks.every(blockType => completedBlockTypes.includes(blockType));
 
       if (isComplete) {
@@ -231,7 +231,7 @@ export default function Demographics() {
 
               {/* Previous Participation */}
               <div className="space-y-4">
-                <Label className="text-lg font-medium">Have you participated in this study before? You can receive candy no matter your answer.</Label>
+                <Label className="text-lg font-medium">Have you participated in this study before?</Label>
                 <div className="grid grid-cols-2 gap-4">
                   {['Yes', 'No'].map((option) => (
                     <button

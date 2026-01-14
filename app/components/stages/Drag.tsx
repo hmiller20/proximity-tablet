@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useCounterbalance } from '@/lib/useCounterbalance';
-import { saveFigurePositions } from '@/lib/counterbalance';
+import { saveDistanceFromCenter, saveTrajectory } from '@/lib/counterbalance';
 import GingerbreadFigure from '@/app/components/GingerbreadFigure';
 import {
   Dialog,
@@ -12,72 +12,109 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { BlockType, FigurePositionData } from '@/lib/types';
+import type { BlockType, TrajectoryPoint } from '@/lib/types';
 import { FOCAL_COLOR_HEX } from '@/lib/types';
 
 interface DragProps {
   blockType: BlockType;
 }
 
-interface FigureState {
-  id: string;
-  type: 'focal' | 'worker';
-  workerIndex: number | null;
-  x: number;
-  y: number;
-  hasBeenDragged: boolean;
-}
+// Responsive figure size based on canvas
+const getFigureSize = (canvasWidth: number, canvasHeight: number) => {
+  const minDim = Math.min(canvasWidth, canvasHeight);
+  // Scale figure size: smaller on small screens, larger on big screens
+  return Math.max(40, Math.min(70, minDim * 0.1));
+};
 
-const FIGURE_SIZE = 50;
-const FIGURE_HEIGHT = FIGURE_SIZE * 1.3;
-const MIN_SEPARATION = FIGURE_SIZE * 0.7;
-const INITIAL_LEFT_MARGIN = 20;
-const INITIAL_TOP_MARGIN = 20;
-const INITIAL_SPACING = FIGURE_HEIGHT + 15;
+// Fixed worker positions as percentages of canvas dimensions
+// Naturalistic cluster on the left side of the canvas, centered vertically
+// Important: No worker should be at yPercent ~0.50 as that's where the track/leader is
+const WORKER_POSITIONS = [
+  { xPercent: 0.18, yPercent: 0.28 },  // Worker 1 - top center
+  { xPercent: 0.10, yPercent: 0.38 },  // Worker 2 - upper left
+  { xPercent: 0.26, yPercent: 0.34 },  // Worker 3 - upper right
+  { xPercent: 0.12, yPercent: 0.62 },  // Worker 4 - lower left (moved down from track)
+  { xPercent: 0.08, yPercent: 0.76 },  // Worker 5 - bottom left
+  { xPercent: 0.24, yPercent: 0.70 },  // Worker 6 - lower right
+];
 
+// Cluster center (where the track starts) - approximate center of worker positions
+const CLUSTER_CENTER_X_PERCENT = 0.17;
+const CLUSTER_CENTER_Y_PERCENT = 0.50;
 
-// Create initial figures
-function createInitialFigures(): FigureState[] {
-  const figures: FigureState[] = [];
-  let workerCount = 0;
-
-  for (let i = 0; i < 7; i++) {
-    const isFocal = i === 2; // 3rd from top (0-indexed)
-
-    if (isFocal) {
-      figures.push({
-        id: 'focal',
-        type: 'focal',
-        workerIndex: null,
-        x: INITIAL_LEFT_MARGIN,
-        y: INITIAL_TOP_MARGIN + i * INITIAL_SPACING,
-        hasBeenDragged: false,
-      });
-    } else {
-      workerCount++;
-      figures.push({
-        id: `worker-${workerCount}`,
-        type: 'worker',
-        workerIndex: workerCount,
-        x: INITIAL_LEFT_MARGIN,
-        y: INITIAL_TOP_MARGIN + i * INITIAL_SPACING,
-        hasBeenDragged: false,
-      });
-    }
-  }
-
-  return figures;
-}
+// Track extends from cluster center to near right edge
+const TRACK_START_X_PERCENT = 0.17;
+const TRACK_END_X_PERCENT = 0.88;
 
 export default function Drag({ blockType }: DragProps) {
   const { goToNextStage, isLoading, isLastStage, focalColors, currentCharacterName, currentFocalColor } = useCounterbalance();
 
   const canvasRef = useRef<HTMLDivElement>(null);
-  const [figures, setFigures] = useState<FigureState[]>(createInitialFigures);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [showError, setShowError] = useState(false);
+  const [canvasDimensions, setCanvasDimensions] = useState({ width: 0, height: 0 });
+  const [leaderX, setLeaderX] = useState<number | null>(null);
+  const [figureMoved, setFigureMoved] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const [showInstructions, setShowInstructions] = useState(true);
-  const [countdown, setCountdown] = useState(10);
+  const [countdown, setCountdown] = useState(5);
+  const [instructionsDismissedAt, setInstructionsDismissedAt] = useState<number | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Trajectory tracking
+  const trajectoryRef = useRef<TrajectoryPoint[]>([]);
+
+  // Mark as mounted on client
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Calculate responsive figure size
+  const figureSize = getFigureSize(canvasDimensions.width, canvasDimensions.height);
+  const figureHeight = figureSize * 1.3;
+
+  // Calculate positions based on canvas dimensions
+  const trackStartX = canvasDimensions.width * TRACK_START_X_PERCENT;
+  const trackEndX = canvasDimensions.width * TRACK_END_X_PERCENT - figureSize;
+  const trackY = canvasDimensions.height * CLUSTER_CENTER_Y_PERCENT;
+  const leaderY = trackY - figureHeight / 2;
+
+  // Measure canvas dimensions
+  useEffect(() => {
+    if (!isMounted) return;
+    
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const updateDimensions = () => {
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        setCanvasDimensions({ width: rect.width, height: rect.height });
+      }
+    };
+
+    // Initial measurement
+    updateDimensions();
+    
+    // Also measure after a short delay to ensure layout is complete
+    const timeoutId = setTimeout(updateDimensions, 100);
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateDimensions();
+    });
+
+    resizeObserver.observe(canvas);
+
+    return () => {
+      resizeObserver.disconnect();
+      clearTimeout(timeoutId);
+    };
+  }, [isMounted]);
+
+  // Initialize leader position at far right when canvas is measured
+  useEffect(() => {
+    if (canvasDimensions.width > 0 && leaderX === null) {
+      setLeaderX(trackEndX);
+    }
+  }, [canvasDimensions.width, leaderX, trackEndX]);
 
   // Countdown timer for instructions popup
   useEffect(() => {
@@ -90,149 +127,61 @@ export default function Drag({ blockType }: DragProps) {
     return () => clearTimeout(timer);
   }, [showInstructions, countdown]);
 
-  // Position figures evenly based on canvas height
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  // Handle instructions dismissal
+  const handleDismissInstructions = () => {
+    setShowInstructions(false);
+    setInstructionsDismissedAt(Date.now());
+  };
 
-    const updateFigurePositions = () => {
-      const rect = canvas.getBoundingClientRect();
-      const canvasHeight = rect.height;
-      if (canvasHeight === 0) return;
+  // Drag position ref for smooth dragging
+  const dragStartX = useRef(0);
+  const leaderStartX = useRef(0);
 
-      const totalFigures = 7;
-      const availableHeight = canvasHeight - FIGURE_HEIGHT;
-      const spacing = availableHeight / (totalFigures - 1);
-
-      setFigures((prev) =>
-        prev.map((figure, index) => ({
-          ...figure,
-          y: index * spacing,
-        }))
-      );
-    };
-
-    // Use ResizeObserver for reliable dimension tracking
-    const resizeObserver = new ResizeObserver(() => {
-      requestAnimationFrame(updateFigurePositions);
-    });
-
-    resizeObserver.observe(canvas);
-
-    // Call after a frame to ensure layout is computed
-    requestAnimationFrame(updateFigurePositions);
-
-    return () => {
-      resizeObserver.disconnect();
-    };
-  }, []);
-
-  // Use refs for drag state to avoid stale closures
-  const dragStartPos = useRef({ x: 0, y: 0 });
-  const figureStartPos = useRef({ x: 0, y: 0 });
-
-    // Collision avoidance: push overlapping figures apart
-  const resolveCollisions = useCallback(
-    (updatedFigures: FigureState[], movedId: string): FigureState[] => {
-      const result = updatedFigures.map(f => ({ ...f }));
-      const movedFigure = result.find((f) => f.id === movedId);
-      if (!movedFigure) return result;
-
-      // Get canvas bounds for clamping
-      const maxX = canvasRef.current ? canvasRef.current.offsetWidth - FIGURE_SIZE : Infinity;
-      const maxY = canvasRef.current ? canvasRef.current.offsetHeight - FIGURE_HEIGHT : Infinity;
-
-      for (const other of result) {
-        if (other.id === movedId) continue;
-
-        const dx = other.x - movedFigure.x;
-        const dy = other.y - movedFigure.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-
-        if (distance < MIN_SEPARATION) {
-          if (distance > 0) {
-            const pushDistance = MIN_SEPARATION - distance;
-            const nx = dx / distance;
-            const ny = dy / distance;
-            other.x += nx * pushDistance;
-            other.y += ny * pushDistance;
-          } else {
-            // Exactly overlapping, push right
-            other.x += MIN_SEPARATION;
-          }
-
-          // Clamp pushed figure to canvas bounds
-          other.x = Math.max(0, Math.min(maxX, other.x));
-          other.y = Math.max(0, Math.min(maxY, other.y));
-        }
-      }
-
-      return result;
-    },
-    []
-  );
-
-  // Handle pointer down (unified for mouse and touch)
-  const handlePointerDown = (e: React.PointerEvent, figureId: string) => {
+  // Handle pointer down on leader
+  const handlePointerDown = (e: React.PointerEvent) => {
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
 
-    const figure = figures.find((f) => f.id === figureId);
-    if (!figure) return;
-
-    setDraggingId(figureId);
-    dragStartPos.current = { x: e.clientX, y: e.clientY };
-    figureStartPos.current = { x: figure.x, y: figure.y };
+    setIsDragging(true);
+    dragStartX.current = e.clientX;
+    leaderStartX.current = leaderX ?? trackEndX;
   };
 
   // Handle pointer move
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!draggingId) return;
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!isDragging || leaderX === null) return;
 
-    const deltaX = e.clientX - dragStartPos.current.x;
-    const deltaY = e.clientY - dragStartPos.current.y;
+    const deltaX = e.clientX - dragStartX.current;
+    let newX = leaderStartX.current + deltaX;
 
-    let newX = figureStartPos.current.x + deltaX;
-    let newY = figureStartPos.current.y + deltaY;
+    // Clamp to track bounds
+    newX = Math.max(trackStartX, Math.min(trackEndX, newX));
 
-    // Keep within canvas bounds
-    if (canvasRef.current) {
-      const maxX = canvasRef.current.offsetWidth - FIGURE_SIZE;
-      const maxY = canvasRef.current.offsetHeight - FIGURE_HEIGHT;
-      newX = Math.max(0, Math.min(maxX, newX));
-      newY = Math.max(0, Math.min(maxY, newY));
+    setLeaderX(newX);
+    setFigureMoved(true);
+
+    // Record trajectory point (relative to track start, same as distance_from_center)
+    if (instructionsDismissedAt !== null) {
+      const t = Date.now() - instructionsDismissedAt;
+      const relativeX = newX - trackStartX;
+      trajectoryRef.current.push({ x: relativeX, t });
     }
-
-    setFigures((prev) => {
-      const updated = prev.map((f) =>
-        f.id === draggingId ? { ...f, x: newX, y: newY, hasBeenDragged: true } : f
-      );
-      return resolveCollisions(updated, draggingId);
-    });
-  };
+  }, [isDragging, leaderX, trackStartX, trackEndX, instructionsDismissedAt]);
 
   // Handle pointer up
   const handlePointerUp = () => {
-    setDraggingId(null);
+    setIsDragging(false);
   };
 
   // Handle next button click
   const handleNext = () => {
-    const allDragged = figures.every((f) => f.hasBeenDragged);
+    if (!figureMoved || leaderX === null) return;
 
-    if (!allDragged) {
-      setShowError(true);
-      return;
-    }
+    // Calculate distance from center (higher = farther from group)
+    const distanceFromCenter = leaderX - trackStartX;
 
-    const positions: FigurePositionData[] = figures.map((f) => ({
-      figureType: f.type,
-      figureIndex: f.workerIndex,
-      x: f.x,
-      y: f.y,
-    }));
-
-    saveFigurePositions(blockType, positions);
+    saveDistanceFromCenter(blockType, distanceFromCenter);
+    saveTrajectory(blockType, trajectoryRef.current);
     goToNextStage();
   };
 
@@ -247,44 +196,62 @@ export default function Drag({ blockType }: DragProps) {
   // Get the color for this specific condition
   const focalColorHex = focalColors?.[blockType]
     ? FOCAL_COLOR_HEX[focalColors[blockType]]
-    : '#3b82f6';
+    : '#228B22'; // Fallback to green
+
+  // Calculate worker positions in pixels
+  const workerPositions = WORKER_POSITIONS.map((pos) => ({
+    x: canvasDimensions.width * pos.xPercent - figureSize / 2,
+    y: canvasDimensions.height * pos.yPercent - figureHeight / 2,
+  }));
+
+  // Arrow endpoints - aligned with where the center of the leader figure can actually go
+  // When leader is at leftmost (leaderX = trackStartX), its center is at trackStartX + figureSize/2
+  // When leader is at rightmost (leaderX = trackEndX), its center is at trackEndX + figureSize/2
+  const arrowStartX = trackStartX + figureSize / 2;
+  const arrowEndX = trackEndX + figureSize / 2;
 
   return (
-    <div className="h-screen flex flex-col p-4 bg-gray-100 overflow-hidden">
-      {/* Instructions - only visible after popup is dismissed, but space is always reserved */}
-      <div className={`mb-2 text-center px-2 flex-shrink-0 ${showInstructions ? 'invisible' : 'visible'}`}>
-        <p className="text-xl md:text-2xl font-bold text-black whitespace-nowrap">
-          Drag{' '}
+    <div className="h-screen flex flex-col p-4 md:p-6 bg-slate-100 overflow-hidden">
+      {/* Instructions - only visible after popup is dismissed */}
+      <div className={`mb-3 text-center px-2 flex-shrink-0 ${showInstructions ? 'invisible' : 'visible'}`}>
+        <p className="text-lg sm:text-xl md:text-2xl font-bold text-slate-800">
+          How close would{' '}
           <span style={{ color: focalColorHex }}>{currentCharacterName}</span>{' '}
-          and the other figures to where you think they would stand in this meeting room.
+          be to his team?
+        </p>
+        <p className="text-sm sm:text-base md:text-lg text-slate-500 mt-1">
+          <strong>Drag</strong> him left or right to show where you think he would stand.
         </p>
       </div>
 
       {/* Instructions Popup */}
-      <Dialog open={showInstructions} onOpenChange={setShowInstructions}>
+      <Dialog open={showInstructions} onOpenChange={() => {}}>
         <DialogContent showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>Instructions</DialogTitle>
-            <DialogDescription className="text-base leading-relaxed">
-              There are seven people on the left side of the screen. Imagine that these people work together. They are having a meeting with
-              employees from all levels of the company.{' '}
+            <DialogDescription className="text-lg leading-relaxed">
+              On the left you will see {' '}
+              <span style={{ color: focalColorHex, fontWeight: 'bold' }}>{currentCharacterName}'s</span>{''} team (gray figures). On the right is{' '}
               <span style={{ color: focalColorHex, fontWeight: 'bold' }}>{currentCharacterName}</span>{' '}
-              is the figure in{' '}
-              <span style={{ color: focalColorHex, fontWeight: 'bold' }}>{currentFocalColor}</span>.{' '}
-              The gray figures are other employees, including interns, managers, and executives.{' '}
-              Drag each figure to where you think they would naturally stand in the group.
+              (the{' '}
+              <span style={{ color: focalColorHex, fontWeight: 'bold' }}>{currentFocalColor}</span>{' '}
+              figure).
+              <br /><br />
+              Drag{' '}
+              <span style={{ color: focalColorHex, fontWeight: 'bold' }}>{currentCharacterName}</span>{' '}
+              to show where you think he would stand relative to his team.
               <br /><br />
               Let the experimenter know if you have any questions.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <button
-              onClick={() => setShowInstructions(false)}
+              onClick={handleDismissInstructions}
               disabled={countdown > 0}
               className={`px-4 py-2 rounded-lg transition-colors ${
                 countdown > 0
                   ? 'bg-gray-400 text-white cursor-not-allowed'
-                  : 'bg-black text-white hover:bg-gray-800'
+                  : 'bg-slate-800 text-white hover:bg-slate-700'
               }`}
             >
               {countdown > 0 ? `Continue (${countdown})` : 'Continue'}
@@ -293,71 +260,133 @@ export default function Drag({ blockType }: DragProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Canvas - constrained to 16:9 aspect ratio */}
+      {/* Canvas */}
       <div
         ref={canvasRef}
-        className="flex-1 min-h-0 bg-white rounded-lg shadow-lg relative overflow-hidden mx-auto"
-        style={{ touchAction: 'none', aspectRatio: '16 / 9', maxWidth: 'calc((100vh - 140px) * 16 / 9)' }}
+        className="flex-1 bg-white rounded-xl shadow-lg relative overflow-hidden w-full border border-slate-200"
+        style={{ touchAction: 'none', minHeight: '300px' }}
       >
-        {/* Floor plan background */}
-        <img
-          src="/meetingRoom3.svg"
-          alt=""
-          className="absolute inset-0 w-full h-full pointer-events-none object-fill"
-          style={{ zIndex: 0 }}
-        />
+        {/* Track visual - two-ended arrow */}
+        {canvasDimensions.width > 0 && (
+          <svg
+            width={canvasDimensions.width}
+            height={canvasDimensions.height}
+            className="absolute inset-0 pointer-events-none"
+            style={{ zIndex: 1 }}
+          >
+            {/* Main track line */}
+            <line
+              x1={arrowStartX}
+              y1={trackY}
+              x2={arrowEndX}
+              y2={trackY}
+              stroke="#cbd5e1"
+              strokeWidth={4}
+              strokeLinecap="round"
+            />
+            
+            {/* Left arrowhead */}
+            <polygon
+              points={`
+                ${arrowStartX - 12},${trackY}
+                ${arrowStartX + 4},${trackY - 10}
+                ${arrowStartX + 4},${trackY + 10}
+              `}
+              fill="#cbd5e1"
+            />
+            
+            {/* Right arrowhead */}
+            <polygon
+              points={`
+                ${arrowEndX + 12},${trackY}
+                ${arrowEndX - 4},${trackY - 10}
+                ${arrowEndX - 4},${trackY + 10}
+              `}
+              fill="#cbd5e1"
+            />
+            
+            {/* Labels - positioned below the figure height */}
+            <text
+              x={arrowStartX}
+              y={trackY + figureHeight / 2 + 25}
+              textAnchor="middle"
+              fill="#94a3b8"
+              fontSize={Math.max(12, figureSize * 0.28)}
+              fontWeight="500"
+            >
+              In the group
+            </text>
+            <text
+              x={arrowEndX}
+              y={trackY + figureHeight / 2 + 25}
+              textAnchor="middle"
+              fill="#94a3b8"
+              fontSize={Math.max(12, figureSize * 0.28)}
+              fontWeight="500"
+            >
+              Outside the group
+            </text>
+          </svg>
+        )}
 
-        {figures.map((figure) => (
+        {/* Worker figures (fixed positions) */}
+        {canvasDimensions.width > 0 && workerPositions.map((pos, index) => (
           <div
-            key={figure.id}
-            className={`absolute select-none ${
-              draggingId === figure.id ? 'cursor-grabbing z-20' : 'cursor-grab z-10'
-            }`}
+            key={`worker-${index}`}
+            className="absolute pointer-events-none"
             style={{
-              left: figure.x,
-              top: figure.y,
-              touchAction: 'none',
+              left: pos.x,
+              top: pos.y,
+              zIndex: 5,
             }}
-            onPointerDown={(e) => handlePointerDown(e, figure.id)}
-            onPointerMove={draggingId === figure.id ? handlePointerMove : undefined}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
           >
             <GingerbreadFigure
-              size={FIGURE_SIZE}
-              fillColor={figure.type === 'focal' ? focalColorHex : '#9ca3af'}
-              strokeColor={figure.type === 'focal' ? '#000' : '#6b7280'}
+              size={figureSize}
+              fillColor="#94a3b8"
+              strokeColor="#64748b"
               strokeWidth={2}
             />
           </div>
         ))}
+
+        {/* Leader figure (draggable) */}
+        {leaderX !== null && canvasDimensions.width > 0 && (
+          <div
+            className={`absolute select-none transition-shadow ${
+              isDragging 
+                ? 'cursor-grabbing z-20' 
+                : 'cursor-grab z-10 hover:drop-shadow-lg'
+            }`}
+            style={{
+              left: leaderX,
+              top: leaderY,
+              touchAction: 'none',
+            }}
+            onPointerDown={handlePointerDown}
+            onPointerMove={isDragging ? handlePointerMove : undefined}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+          >
+            <GingerbreadFigure
+              size={figureSize}
+              fillColor={focalColorHex}
+              strokeColor="#1e293b"
+              strokeWidth={2.5}
+            />
+          </div>
+        )}
       </div>
 
-      {/* Error Dialog */}
-      <Dialog open={showError} onOpenChange={setShowError}>
-        <DialogContent showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle>Please complete the task</DialogTitle>
-            <DialogDescription>
-              Please drag all figures into the shape of a group.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <button
-              onClick={() => setShowError(false)}
-              className="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
-            >
-              OK
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Next button */}
-      <div className="mt-2 flex justify-center flex-shrink-0">
+      <div className="mt-3 md:mt-4 flex justify-center flex-shrink-0">
         <button
           onClick={handleNext}
-          className="px-8 py-3 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors text-lg"
+          disabled={!figureMoved}
+          className={`px-6 sm:px-8 py-2.5 sm:py-3 rounded-lg transition-all text-base sm:text-lg font-medium ${
+            figureMoved
+              ? 'bg-slate-800 text-white hover:bg-slate-700 shadow-md hover:shadow-lg'
+              : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+          }`}
         >
           {isLastStage ? 'Continue' : 'Next'}
         </button>

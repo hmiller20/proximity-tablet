@@ -16,7 +16,6 @@ interface PrepProps {
 const PREP_TEXT = {
   first: "Please read the following description carefully. You will be asked to recall details of the description later.",
   second: "Nice job! Now you will read about another person. Please read the following description carefully. You will be asked to recall details of the description later.",
-  third: "Great work! Now you will read about a third person. Please read the following description carefully. You will be asked to recall details of the description later."
 };
 
 export default function Prep({ blockType }: PrepProps) {
@@ -33,7 +32,7 @@ export default function Prep({ blockType }: PrepProps) {
 
   // Get the appropriate prep text based on condition index (position)
   const getPrepText = (): string => {
-    const textKeys = ['first', 'second', 'third'] as const;
+    const textKeys = ['first', 'second'] as const;
     const textKey = textKeys[conditionIndex] || 'first';
     return PREP_TEXT[textKey];
   };

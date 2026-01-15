@@ -275,12 +275,10 @@ export default function Drag({ blockType }: DragProps) {
           <DialogHeader>
             <DialogTitle>Instructions</DialogTitle>
             <DialogDescription className="text-lg leading-relaxed">
-              On the left you will see {' '}
-              <span style={{ color: focalColorHex, fontWeight: 'bold' }}>{currentCharacterName}'s</span>{''} employees (gray figures). In the middle is{' '}
-              <span style={{ color: focalColorHex, fontWeight: 'bold' }}>{currentCharacterName}</span>{' '}.
-              Drag{' '}
+              In the middle you will see{' '}
               <span style={{ color: focalColorHex, fontWeight: 'bold' }}>{currentCharacterName}</span>{' '}
-              with the slider to show where you think he would stand.
+              (the <span style={{ color: focalColorHex, fontWeight: 'bold' }}>{currentFocalColor}</span> figure) and his employees (the gray figures).
+              Drag with the slider to show where you think he would stand.
               <br /><br />
               You don’t have a lot of information to go on, but we are interested in people’s intuitions about how groups work. So, when using the slider, it’s important that you go with your gut about where the person should be located.
               <br /><br />

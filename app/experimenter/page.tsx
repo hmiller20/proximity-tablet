@@ -15,7 +15,7 @@ export default function ExperimenterPage() {
   const [error, setError] = useState("");
   const router = useRouter();
 
-  const experimentersList = ["Amelia", "Brady", "Edward", "Eva", "Harrison", "Megan", "Nate", "Rafa", "Ramsey", "Sean", "Sofia", "Sophia"];
+  const experimentersList = ["Amelia", "Annika", "David", "Harrison", "Megan", "Ramsey", "Risa", "Sofia"];
 
   // Handle checkbox changes with mutual exclusivity
   const handleSessionGoodChange = (checked: boolean) => {

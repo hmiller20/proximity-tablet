@@ -9,6 +9,7 @@ import {
   CharacterName,
   SurveyResponses,
   TrajectoryPoint,
+  WorkerDistanceMetrics,
   CONDITIONS,
   FOCAL_COLORS,
   CHARACTER_NAMES,
@@ -89,6 +90,7 @@ export function initializeSession(): SessionData {
     surveyResponses: {},
     distanceFromCenter: {},
     trajectory: {},
+    workerDistances: {},
     isComplete: false,
   };
 
@@ -159,6 +161,18 @@ export function saveTrajectory(
   const storage = getStorageData();
   if (storage.currentSession) {
     storage.currentSession.trajectory[blockType] = trajectory;
+    saveStorageData(storage);
+  }
+}
+
+// Save worker distance metrics for a condition
+export function saveWorkerDistances(
+  blockType: BlockType,
+  metrics: WorkerDistanceMetrics
+): void {
+  const storage = getStorageData();
+  if (storage.currentSession) {
+    storage.currentSession.workerDistances[blockType] = metrics;
     saveStorageData(storage);
   }
 }

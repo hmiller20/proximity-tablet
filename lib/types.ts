@@ -18,6 +18,15 @@ export interface TrajectoryPoint {
   t: number;  // milliseconds since instructions dismissed
 }
 
+// Distance metrics from leader to workers
+export interface WorkerDistanceMetrics {
+  distancesToWorkers: number[];  // distance to each worker (index 0-5)
+  averageDistance: number;       // mean distance to all workers
+  minDistance: number;           // distance to closest worker
+  closestWorkerIndex: number;    // index of closest worker (0-5)
+  distanceToCentroid: number;    // distance to center of worker group
+}
+
 // Demographics data
 export interface DemographicsData {
   age: string;
@@ -44,6 +53,7 @@ export interface SessionData {
   surveyResponses: Partial<Record<BlockType, SurveyResponses>>;
   distanceFromCenter: Partial<Record<BlockType, number>>;  // Distance in pixels from leader to center
   trajectory: Partial<Record<BlockType, TrajectoryPoint[]>>;  // Drag movement trajectory
+  workerDistances: Partial<Record<BlockType, WorkerDistanceMetrics>>;  // Distance metrics to workers
   isComplete: boolean;
   demographics?: DemographicsData;
   blocks?: CompletedBlock[];

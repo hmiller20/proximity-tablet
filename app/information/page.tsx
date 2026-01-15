@@ -67,7 +67,7 @@ export default function InformationPage() {
         <CardContent className="p-6 flex flex-col items-center gap-8">
           <div className="text-center space-y-4">
             <p className="text-lg sm:text-xl leading-relaxed max-w-xl">
-              Next, you will be presented with two different descriptions of people. For both descriptions,
+            This study is about group dynamics – how members of a group relate to and interact with one another. Next, you will be presented with two different descriptions of people. For both descriptions,
               you will read about the person, answer some questions, and then place that person in a group.
             </p>
             <p className="text-lg sm:text-xl leading-relaxed max-w-xl">

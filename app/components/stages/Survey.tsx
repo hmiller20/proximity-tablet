@@ -43,7 +43,7 @@ const baseQuestions: Question[] = [
   },
   {
     id: 'statusManip2',
-    text: '[NAME] seeks out leadership opportunities regularly.',
+    text: '[NAME] has high status at his workplace.',
   },
 ];
 

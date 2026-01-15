@@ -2,7 +2,7 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useCounterbalance } from '@/lib/useCounterbalance';
-import { saveDistanceFromCenter, saveTrajectory } from '@/lib/counterbalance';
+import { saveDistanceFromCenter, saveTrajectory, saveWorkerDistances } from '@/lib/counterbalance';
 import GingerbreadFigure from '@/app/components/GingerbreadFigure';
 import {
   Dialog,
@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { BlockType, TrajectoryPoint } from '@/lib/types';
+import type { BlockType, TrajectoryPoint, WorkerDistanceMetrics } from '@/lib/types';
 import { FOCAL_COLOR_HEX } from '@/lib/types';
 
 interface DragProps {
@@ -27,24 +27,23 @@ const getFigureSize = (canvasWidth: number, canvasHeight: number) => {
 };
 
 // Fixed worker positions as percentages of canvas dimensions
-// Naturalistic cluster on the left side of the canvas, centered vertically
+// Naturalistic cluster centered at 50% horizontally
 // Important: No worker should be at yPercent ~0.50 as that's where the track/leader is
 const WORKER_POSITIONS = [
-  { xPercent: 0.18, yPercent: 0.28 },  // Worker 1 - top center
-  { xPercent: 0.10, yPercent: 0.38 },  // Worker 2 - upper left
-  { xPercent: 0.26, yPercent: 0.34 },  // Worker 3 - upper right
-  { xPercent: 0.12, yPercent: 0.62 },  // Worker 4 - lower left (moved down from track)
-  { xPercent: 0.08, yPercent: 0.76 },  // Worker 5 - bottom left
-  { xPercent: 0.24, yPercent: 0.70 },  // Worker 6 - lower right
+  { xPercent: 0.50, yPercent: 0.28 },  // Worker 1 - top center
+  { xPercent: 0.44, yPercent: 0.34 },  // Worker 2 - upper left
+  { xPercent: 0.56, yPercent: 0.34 },  // Worker 3 - upper right
+  { xPercent: 0.50, yPercent: 0.72 },  // Worker 4 - lower left
+  { xPercent: 0.44, yPercent: 0.66 },  // Worker 5 - bottom left
+  { xPercent: 0.56, yPercent: 0.66 },  // Worker 6 - lower right
 ];
 
-// Cluster center (where the track starts) - approximate center of worker positions
-const CLUSTER_CENTER_X_PERCENT = 0.17;
-const CLUSTER_CENTER_Y_PERCENT = 0.50;
+// Track center at 50% (same as worker centroid)
+const TRACK_CENTER_Y_PERCENT = 0.50;
 
-// Track extends from cluster center to near right edge
-const TRACK_START_X_PERCENT = 0.17;
-const TRACK_END_X_PERCENT = 0.88;
+// Track extends across the canvas
+const TRACK_START_X_PERCENT = 0.08;
+const TRACK_END_X_PERCENT = 0.92;
 
 export default function Drag({ blockType }: DragProps) {
   const { goToNextStage, isLoading, isLastStage, focalColors, currentCharacterName, currentFocalColor } = useCounterbalance();
@@ -55,7 +54,7 @@ export default function Drag({ blockType }: DragProps) {
   const [figureMoved, setFigureMoved] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [showInstructions, setShowInstructions] = useState(true);
-  const [countdown, setCountdown] = useState(5);
+  const [countdown, setCountdown] = useState(10);
   const [instructionsDismissedAt, setInstructionsDismissedAt] = useState<number | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
@@ -74,7 +73,9 @@ export default function Drag({ blockType }: DragProps) {
   // Calculate positions based on canvas dimensions
   const trackStartX = canvasDimensions.width * TRACK_START_X_PERCENT;
   const trackEndX = canvasDimensions.width * TRACK_END_X_PERCENT - figureSize;
-  const trackY = canvasDimensions.height * CLUSTER_CENTER_Y_PERCENT;
+  // Track center at 50% of canvas width (minus half figure size to center the figure)
+  const trackCenterX = canvasDimensions.width * 0.5 - figureSize / 2;
+  const trackY = canvasDimensions.height * TRACK_CENTER_Y_PERCENT;
   const leaderY = trackY - figureHeight / 2;
 
   // Measure canvas dimensions
@@ -109,12 +110,12 @@ export default function Drag({ blockType }: DragProps) {
     };
   }, [isMounted]);
 
-  // Initialize leader position at far right when canvas is measured
+  // Initialize leader position at center of track when canvas is measured
   useEffect(() => {
     if (canvasDimensions.width > 0 && leaderX === null) {
-      setLeaderX(trackEndX);
+      setLeaderX(trackCenterX);
     }
-  }, [canvasDimensions.width, leaderX, trackEndX]);
+  }, [canvasDimensions.width, leaderX, trackCenterX]);
 
   // Countdown timer for instructions popup
   useEffect(() => {
@@ -144,7 +145,7 @@ export default function Drag({ blockType }: DragProps) {
 
     setIsDragging(true);
     dragStartX.current = e.clientX;
-    leaderStartX.current = leaderX ?? trackEndX;
+    leaderStartX.current = leaderX ?? trackCenterX;
   };
 
   // Handle pointer move
@@ -160,13 +161,13 @@ export default function Drag({ blockType }: DragProps) {
     setLeaderX(newX);
     setFigureMoved(true);
 
-    // Record trajectory point (relative to track start, same as distance_from_center)
+    // Record trajectory point (relative to track center: negative=left, positive=right)
     if (instructionsDismissedAt !== null) {
       const t = Date.now() - instructionsDismissedAt;
-      const relativeX = newX - trackStartX;
+      const relativeX = newX - trackCenterX;
       trajectoryRef.current.push({ x: relativeX, t });
     }
-  }, [isDragging, leaderX, trackStartX, trackEndX, instructionsDismissedAt]);
+  }, [isDragging, leaderX, trackStartX, trackEndX, trackCenterX, instructionsDismissedAt]);
 
   // Handle pointer up
   const handlePointerUp = () => {
@@ -177,11 +178,55 @@ export default function Drag({ blockType }: DragProps) {
   const handleNext = () => {
     if (!figureMoved || leaderX === null) return;
 
-    // Calculate distance from center (higher = farther from group)
-    const distanceFromCenter = leaderX - trackStartX;
+    // Calculate distance from center (negative=left/toward group, positive=right/away from group)
+    const distanceFromCenter = leaderX - trackCenterX;
+
+    // Calculate leader center position
+    const leaderCenterX = leaderX + figureSize / 2;
+    const leaderCenterY = leaderY + figureHeight / 2;
+
+    // Calculate worker positions and distances
+    const workerCenters = WORKER_POSITIONS.map((pos) => ({
+      x: canvasDimensions.width * pos.xPercent,
+      y: canvasDimensions.height * pos.yPercent,
+    }));
+
+    // Distance to each worker (center to center)
+    const distancesToWorkers = workerCenters.map((worker) =>
+      Math.sqrt(
+        Math.pow(leaderCenterX - worker.x, 2) +
+        Math.pow(leaderCenterY - worker.y, 2)
+      )
+    );
+
+    // Average distance to all workers
+    const averageDistance = distancesToWorkers.reduce((sum, d) => sum + d, 0) / distancesToWorkers.length;
+
+    // Minimum distance and closest worker
+    const minDistance = Math.min(...distancesToWorkers);
+    const closestWorkerIndex = distancesToWorkers.indexOf(minDistance);
+
+    // Calculate worker centroid (average of all worker positions)
+    const centroidX = workerCenters.reduce((sum, w) => sum + w.x, 0) / workerCenters.length;
+    const centroidY = workerCenters.reduce((sum, w) => sum + w.y, 0) / workerCenters.length;
+
+    // Distance from leader to centroid
+    const distanceToCentroid = Math.sqrt(
+      Math.pow(leaderCenterX - centroidX, 2) +
+      Math.pow(leaderCenterY - centroidY, 2)
+    );
+
+    const workerDistanceMetrics: WorkerDistanceMetrics = {
+      distancesToWorkers,
+      averageDistance,
+      minDistance,
+      closestWorkerIndex,
+      distanceToCentroid,
+    };
 
     saveDistanceFromCenter(blockType, distanceFromCenter);
     saveTrajectory(blockType, trajectoryRef.current);
+    saveWorkerDistances(blockType, workerDistanceMetrics);
     goToNextStage();
   };
 
@@ -215,9 +260,9 @@ export default function Drag({ blockType }: DragProps) {
       {/* Instructions - only visible after popup is dismissed */}
       <div className={`mb-3 text-center px-2 flex-shrink-0 ${showInstructions ? 'invisible' : 'visible'}`}>
         <p className="text-lg sm:text-xl md:text-2xl font-bold text-slate-800">
-          How close would{' '}
+          Where would{' '}
           <span style={{ color: focalColorHex }}>{currentCharacterName}</span>{' '}
-          be to his team?
+          stand?
         </p>
         <p className="text-sm sm:text-base md:text-lg text-slate-500 mt-1">
           <strong>Drag</strong> him left or right to show where you think he would stand.
@@ -231,15 +276,13 @@ export default function Drag({ blockType }: DragProps) {
             <DialogTitle>Instructions</DialogTitle>
             <DialogDescription className="text-lg leading-relaxed">
               On the left you will see {' '}
-              <span style={{ color: focalColorHex, fontWeight: 'bold' }}>{currentCharacterName}'s</span>{''} team (gray figures). On the right is{' '}
-              <span style={{ color: focalColorHex, fontWeight: 'bold' }}>{currentCharacterName}</span>{' '}
-              (the{' '}
-              <span style={{ color: focalColorHex, fontWeight: 'bold' }}>{currentFocalColor}</span>{' '}
-              figure).
-              <br /><br />
+              <span style={{ color: focalColorHex, fontWeight: 'bold' }}>{currentCharacterName}'s</span>{''} employees (gray figures). In the middle is{' '}
+              <span style={{ color: focalColorHex, fontWeight: 'bold' }}>{currentCharacterName}</span>{' '}.
               Drag{' '}
               <span style={{ color: focalColorHex, fontWeight: 'bold' }}>{currentCharacterName}</span>{' '}
-              to show where you think he would stand relative to his team.
+              with the slider to show where you think he would stand.
+              <br /><br />
+              You don’t have a lot of information to go on, but we are interested in people’s intuitions about how groups work. So, when using the slider, it’s important that you go with your gut about where the person should be located.
               <br /><br />
               Let the experimenter know if you have any questions.
             </DialogDescription>
@@ -304,28 +347,6 @@ export default function Drag({ blockType }: DragProps) {
               `}
               fill="#cbd5e1"
             />
-            
-            {/* Labels - positioned below the figure height */}
-            <text
-              x={arrowStartX}
-              y={trackY + figureHeight / 2 + 25}
-              textAnchor="middle"
-              fill="#94a3b8"
-              fontSize={Math.max(12, figureSize * 0.28)}
-              fontWeight="500"
-            >
-              In the group
-            </text>
-            <text
-              x={arrowEndX}
-              y={trackY + figureHeight / 2 + 25}
-              textAnchor="middle"
-              fill="#94a3b8"
-              fontSize={Math.max(12, figureSize * 0.28)}
-              fontWeight="500"
-            >
-              Outside the group
-            </text>
           </svg>
         )}
 

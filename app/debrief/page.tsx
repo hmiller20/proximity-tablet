@@ -20,7 +20,7 @@ export default function DebriefPage() {
   const [dialogOpen, setDialogOpen] = useState(true);
 
   const handleSubmit = () => {
-    if (password.toLowerCase() === 'prestige') {
+    if (password.trim().toLowerCase() === 'prestige') {
       router.push('/experimenter');
     } else {
       setError('Wrong password');

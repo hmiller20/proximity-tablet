@@ -80,10 +80,10 @@ export default function Vignette({ blockType }: VignetteProps) {
 
       <div className="flex items-center justify-center min-h-[calc(100vh-8rem)]">
         {/* Main card */}
-        <div className="w-full max-w-2xl bg-white rounded-lg shadow-md border border-gray-200">
+        <div className="w-full max-w-4xl bg-white rounded-lg shadow-md border border-gray-200">
           <div className="p-6 flex flex-col items-center gap-8">
             <div
-              className="text-left text-lg sm:text-xl leading-relaxed max-w-xl"
+              className="text-left text-lg sm:text-xl leading-relaxed max-w-3xl"
               dangerouslySetInnerHTML={{ __html: getVignetteText() }}
             />
 

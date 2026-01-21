@@ -39,6 +39,11 @@ export interface Trial {
   attn_check_3: number | null;  // Condition 1: "select three" (correct = 3)
   distance_from_center: number | null;  // Distance in pixels from leader to center of group
   trajectory: object[] | null;  // Array of {x, t} tracking drag movement
+  distances_to_workers: number[] | null;  // Distance to each worker (indices 0-5)
+  avg_distance_to_workers: number | null;  // Mean distance to all workers
+  min_distance_to_worker: number | null;  // Distance to closest worker
+  closest_worker_index: number | null;  // Index of closest worker (0-5)
+  distance_to_centroid: number | null;  // Distance to centroid of worker group
   created_at: string;
 }
 
@@ -100,6 +105,7 @@ export async function uploadSessions(sessions: SessionData[]): Promise<void> {
       const surveyResponses = session.surveyResponses[blockType];
       const distanceFromCenter = session.distanceFromCenter?.[blockType] ?? null;
       const trajectory = session.trajectory?.[blockType] ?? null;
+      const workerDistances = session.workerDistances?.[blockType] ?? null;
 
       // Create trial record
       const { error: trialError } = await supabase
@@ -119,6 +125,11 @@ export async function uploadSessions(sessions: SessionData[]): Promise<void> {
           attn_check_3: surveyResponses?.attnCheck2 ?? null,  // Condition 1: correct = 3
           distance_from_center: distanceFromCenter,
           trajectory: trajectory,
+          distances_to_workers: workerDistances?.distancesToWorkers ?? null,
+          avg_distance_to_workers: workerDistances?.averageDistance ?? null,
+          min_distance_to_worker: workerDistances?.minDistance ?? null,
+          closest_worker_index: workerDistances?.closestWorkerIndex ?? null,
+          distance_to_centroid: workerDistances?.distanceToCentroid ?? null,
         });
 
       if (trialError) {
